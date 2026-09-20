@@ -42,10 +42,9 @@ export function useTasks(userId) {
     rolloverIfNeeded().then(fetchTasks);
   }, [userId, rolloverIfNeeded, fetchTasks]);
 
-  async function addTask({
+  function buildTaskPatch({
     description,
     assigner,
-    date,
     deadline = null,
     effortEstimate = null,
     impactDone = null,
@@ -74,15 +73,10 @@ export function useTasks(userId) {
       concurrentTasks,
     });
 
-    const { data, error } = await supabase
-      .from("tasks")
-      .insert({
-        user_id: userId,
+    return {
+      patch: {
         description,
         assigner: assigner || "Diri Sendiri",
-        status: "on_going",
-        date,
-        original_date: date,
         deadline: deadline || null,
         effort_estimate: effortEstimate || null,
         impact_done: impactDone ?? null,
@@ -97,11 +91,42 @@ export function useTasks(userId) {
         priority_score: assessment.priority_score,
         priority_level: assessment.priority_level,
         priority_assessment: assessment,
+      },
+      assessment,
+    };
+  }
+
+  async function addTask(payload) {
+    const { date } = payload;
+    const { patch } = buildTaskPatch(payload);
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        user_id: userId,
+        status: "on_going",
+        date,
+        original_date: date,
+        ...patch,
       })
       .select()
       .single();
     if (error) throw error;
     setTasks((prev) => [data, ...prev]);
+    return data;
+  }
+
+  async function updateTask(id, payload) {
+    const { patch } = buildTaskPatch(payload);
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(patch)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    setTasks((prev) => prev.map((t) => (t.id === id ? data : t)));
     return data;
   }
 
@@ -127,5 +152,5 @@ export function useTasks(userId) {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   }
 
-  return { tasks, loading, error, addTask, updateStatus, deleteTask, refetch: fetchTasks };
+  return { tasks, loading, error, addTask, updateTask, updateStatus, deleteTask, refetch: fetchTasks };
 }

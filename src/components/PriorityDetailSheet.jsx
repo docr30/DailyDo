@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Flame, AlertTriangle, Gauge, Leaf } from "lucide-react";
+import { X, Flame, AlertTriangle, Gauge, Leaf, Pencil } from "lucide-react";
 import { CRITERIA_LABELS } from "../utils/priorityEngine.js";
 
 const LEVEL_META = {
@@ -46,7 +46,7 @@ function Section({ title, children }) {
   );
 }
 
-export default function PriorityDetailSheet({ task, onClose }) {
+export default function PriorityDetailSheet({ task, onClose, onEdit }) {
   if (!task) return null;
   const a = task.priority_assessment;
   const meta = LEVEL_META[task.priority_level] || LEVEL_META.P2;
@@ -115,6 +115,16 @@ export default function PriorityDetailSheet({ task, onClose }) {
               <span className="font-medium text-gray-600 dark:text-gray-300">{a.confidence}</span>
             </p>
           </>
+        )}
+
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-accent dark:bg-accent-dark text-white dark:text-[#04141A]"
+          >
+            <Pencil size={15} />
+            Edit tugas ini
+          </button>
         )}
       </div>
     </div>

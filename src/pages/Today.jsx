@@ -22,9 +22,10 @@ const LEGEND = [
 ];
 
 export default function Today({ tasksApi }) {
-  const { tasks, addTask, updateStatus } = tasksApi;
+  const { tasks, addTask, updateTask, updateStatus, deleteTask } = tasksApi;
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [showAdd, setShowAdd] = useState(false);
+  const [editTaskId, setEditTaskId] = useState(null);
   const [statusSheetId, setStatusSheetId] = useState(null);
   const [priorityDetailId, setPriorityDetailId] = useState(null);
   const [showReminder, setShowReminder] = useState(false);
@@ -50,6 +51,7 @@ export default function Today({ tasksApi }) {
 
   const currentSheetTask = tasks.find((t) => t.id === statusSheetId);
   const currentPriorityTask = tasks.find((t) => t.id === priorityDetailId);
+  const currentEditTask = tasks.find((t) => t.id === editTaskId);
 
   return (
     <div className="max-w-2xl mx-auto px-4 pt-5 pb-24 relative">
@@ -133,6 +135,7 @@ export default function Today({ tasksApi }) {
             task={t}
             onClick={() => setStatusSheetId(t.id)}
             onInfoClick={() => setPriorityDetailId(t.id)}
+            onEditClick={() => setEditTaskId(t.id)}
           />
         ))}
       </div>
@@ -142,10 +145,14 @@ export default function Today({ tasksApi }) {
           <p className="text-xs font-medium mb-2 text-gray-400 dark:text-gray-500">Selesai ({doneTasksToday.length})</p>
           <div className="space-y-2">
             {doneTasksToday.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 rounded-lg px-4 py-2 opacity-65 bg-white dark:bg-surface-dark border border-border dark:border-border-dark">
+              <button
+                key={t.id}
+                onClick={() => setEditTaskId(t.id)}
+                className="w-full flex items-center gap-2 rounded-lg px-4 py-2 text-left opacity-65 hover:opacity-90 transition-opacity bg-white dark:bg-surface-dark border border-border dark:border-border-dark"
+              >
                 <Check size={14} className="shrink-0 text-done dark:text-done-dark" />
                 <p className="text-sm line-through text-gray-500 dark:text-gray-400">{t.description}</p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -171,6 +178,22 @@ export default function Today({ tasksApi }) {
         />
       )}
 
+      {currentEditTask && (
+        <AddTaskModal
+          initialTask={currentEditTask}
+          dateLabel={formatLong(selectedDate)}
+          onClose={() => setEditTaskId(null)}
+          onSave={async (payload) => {
+            await updateTask(currentEditTask.id, payload);
+            setEditTaskId(null);
+          }}
+          onDelete={async () => {
+            await deleteTask(currentEditTask.id);
+            setEditTaskId(null);
+          }}
+        />
+      )}
+
       {currentSheetTask && (
         <StatusSheet
           task={currentSheetTask}
@@ -183,7 +206,14 @@ export default function Today({ tasksApi }) {
       )}
 
       {currentPriorityTask && (
-        <PriorityDetailSheet task={currentPriorityTask} onClose={() => setPriorityDetailId(null)} />
+        <PriorityDetailSheet
+          task={currentPriorityTask}
+          onClose={() => setPriorityDetailId(null)}
+          onEdit={() => {
+            setEditTaskId(currentPriorityTask.id);
+            setPriorityDetailId(null);
+          }}
+        />
       )}
 
       {showReminder && (

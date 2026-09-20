@@ -149,6 +149,13 @@ keyakinan (confidence).
   lewat `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, jadi aman dijalankan
   ulang di project Supabase yang sudah ada.
 
+- Tombol **Edit** pada tiap kartu (atau tombol "Edit tugas ini" di layar
+  Detail Prioritas) membuka form yang sama dengan "Tambah Tugas", terisi
+  otomatis dengan data tugas tersebut. Ubah deskripsi, deadline, atau kriteria
+  penilaian apa pun, lalu simpan — skor & level prioritas dihitung ulang
+  otomatis. Tugas yang sudah **Selesai** juga bisa diklik untuk diedit. Ada
+  juga tombol **Hapus tugas** (dengan konfirmasi) di form edit.
+
 ## Catatan
 
 - Ikon PWA (`public/icon-192.png`, `public/icon-512.png`) belum disertakan —

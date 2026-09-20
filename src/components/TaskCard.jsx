@@ -1,5 +1,5 @@
 import React from "react";
-import { Flame, AlertTriangle, Gauge, Leaf, Info } from "lucide-react";
+import { Flame, AlertTriangle, Gauge, Leaf, Info, Pencil } from "lucide-react";
 
 const PRIORITY_META = {
   P0: {
@@ -57,7 +57,7 @@ const STATUS_META = {
   },
 };
 
-export default function TaskCard({ task, onClick, onInfoClick }) {
+export default function TaskCard({ task, onClick, onInfoClick, onEditClick }) {
   const level = task.priority_level && PRIORITY_META[task.priority_level] ? task.priority_level : "P2";
   const pMeta = PRIORITY_META[level];
   const sMeta = STATUS_META[task.status];
@@ -96,17 +96,30 @@ export default function TaskCard({ task, onClick, onInfoClick }) {
 
       <div className="flex items-center justify-between mt-1.5">
         <p className="text-xs text-gray-400 dark:text-gray-500">dari: {task.assigner}</p>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onInfoClick?.();
-          }}
-          className={`flex items-center gap-1 text-[11px] font-medium ${pMeta.text}`}
-        >
-          <Info size={12} />
-          Detail
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditClick?.();
+            }}
+            className="flex items-center gap-1 text-[11px] font-medium text-gray-400 dark:text-gray-500"
+          >
+            <Pencil size={12} />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInfoClick?.();
+            }}
+            className={`flex items-center gap-1 text-[11px] font-medium ${pMeta.text}`}
+          >
+            <Info size={12} />
+            Detail
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, ChevronDown, Flame, AlertTriangle, Gauge, Leaf } from "lucide-react";
+import { X, ChevronDown, Flame, AlertTriangle, Gauge, Leaf, Trash2 } from "lucide-react";
 import { assessPriority, EFFORT_OPTIONS, SCALE_LABELS } from "../utils/priorityEngine.js";
 
 const PREVIEW_META = {
@@ -56,24 +56,30 @@ function ScaleSelect({ value, onChange, placeholder }) {
   );
 }
 
-export default function AddTaskModal({ onClose, onSave, dateLabel }) {
-  const [description, setDescription] = useState("");
-  const [assigner, setAssigner] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [effortEstimate, setEffortEstimate] = useState(null);
-  const [impactDone, setImpactDone] = useState(null);
-  const [impactLate, setImpactLate] = useState(null);
-  const [strategicFit, setStrategicFit] = useState(null);
-  const [blocksOthers, setBlocksOthers] = useState(null);
-  const [blocksWho, setBlocksWho] = useState("");
-  const [complianceRisk, setComplianceRisk] = useState(null);
-  const [delegable, setDelegable] = useState(null);
-  const [stakeholders, setStakeholders] = useState("");
-  const [concurrentTasks, setConcurrentTasks] = useState("");
+// initialTask: kalau diisi, modal ini jadi mode Edit (prefill semua field dari tugas yang ada).
+// onDelete: opsional, dipanggil kalau user memilih hapus tugas saat mode edit.
+export default function AddTaskModal({ onClose, onSave, onDelete, dateLabel, initialTask = null }) {
+  const isEdit = Boolean(initialTask);
+
+  const [description, setDescription] = useState(initialTask?.description ?? "");
+  const [assigner, setAssigner] = useState(initialTask?.assigner ?? "");
+  const [deadline, setDeadline] = useState(initialTask?.deadline ?? "");
+  const [effortEstimate, setEffortEstimate] = useState(initialTask?.effort_estimate ?? null);
+  const [impactDone, setImpactDone] = useState(initialTask?.impact_done ?? null);
+  const [impactLate, setImpactLate] = useState(initialTask?.impact_late ?? null);
+  const [strategicFit, setStrategicFit] = useState(initialTask?.strategic_fit ?? null);
+  const [blocksOthers, setBlocksOthers] = useState(initialTask?.blocks_others ?? null);
+  const [blocksWho, setBlocksWho] = useState(initialTask?.blocks_who ?? "");
+  const [complianceRisk, setComplianceRisk] = useState(initialTask?.compliance_risk ?? null);
+  const [delegable, setDelegable] = useState(initialTask?.delegable ?? null);
+  const [stakeholders, setStakeholders] = useState(initialTask?.stakeholders ?? "");
+  const [concurrentTasks, setConcurrentTasks] = useState(initialTask?.concurrent_tasks ?? "");
   const [showAdvanced, setShowAdvanced] = useState(true);
 
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const preview = useMemo(
     () =>
@@ -126,11 +132,25 @@ export default function AddTaskModal({ onClose, onSave, dateLabel }) {
     }
   }
 
+  async function handleDelete() {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await onDelete();
+    } catch (e) {
+      setError(e.message || "Gagal menghapus tugas");
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-30 flex items-end sm:items-center justify-center px-0 sm:px-4 bg-black/55">
       <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto bg-white dark:bg-surface-dark border border-border dark:border-border-dark">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-semibold text-gray-800 dark:text-gray-100">Tambah Tugas</h2>
+          <h2 className="font-semibold text-gray-800 dark:text-gray-100">{isEdit ? "Edit Tugas" : "Tambah Tugas"}</h2>
           <button onClick={onClose} className="p-1 rounded-full text-gray-500 dark:text-gray-400">
             <X size={18} />
           </button>
@@ -244,11 +264,26 @@ export default function AddTaskModal({ onClose, onSave, dateLabel }) {
 
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || deleting}
           className="w-full py-2.5 rounded-xl text-sm font-medium bg-accent dark:bg-accent-dark text-white dark:text-[#04141A] disabled:opacity-60"
         >
-          {saving ? "Menyimpan..." : "Simpan tugas"}
+          {saving ? "Menyimpan..." : isEdit ? "Simpan perubahan" : "Simpan tugas"}
         </button>
+
+        {isEdit && onDelete && (
+          <button
+            onClick={handleDelete}
+            disabled={saving || deleting}
+            className={`w-full mt-2 py-2.5 rounded-xl text-sm font-medium border flex items-center justify-center gap-2 disabled:opacity-60 ${
+              confirmDelete
+                ? "bg-danger dark:bg-danger-dark text-white border-transparent"
+                : "border-danger dark:border-danger-dark text-danger dark:text-danger-dark"
+            }`}
+          >
+            <Trash2 size={15} />
+            {deleting ? "Menghapus..." : confirmDelete ? "Yakin hapus tugas ini?" : "Hapus tugas"}
+          </button>
+        )}
       </div>
     </div>
   );
