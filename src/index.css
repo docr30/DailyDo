@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg dark:bg-bg-dark text-gray-800 dark:text-gray-100;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+.pulse-dot { animation: pulseDot 1.6s ease-in-out infinite; }
+
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(45,226,230,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45,226,230,0.05) 1px, transparent 1px);
+  background-size: 36px 36px;
+  z-index: 0;
+}
+.dark .grid-overlay { opacity: 1; }
+.grid-overlay { opacity: 0.6; }
