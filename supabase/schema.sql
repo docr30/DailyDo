@@ -1,128 +1,123 @@
--- =========================================================
--- DailyDo — Supabase schema
--- Jalankan ini di Supabase Dashboard > SQL Editor (sekali saja)
--- =========================================================
+-- FinTrack schema for Supabase (Postgres)
+-- Run this once in Supabase SQL editor (Project > SQL Editor > New query)
 
--- 1. Tabel tasks -------------------------------------------------
-create table if not exists public.tasks (
+create extension if not exists "pgcrypto";
+
+create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  description text not null check (char_length(description) <= 500),
-  assigner varchar(100) default 'Diri Sendiri',
-  status varchar(20) not null default 'on_going'
-    check (status in ('on_going', 'pending', 'done')),
-  date date not null,
-  original_date date not null,
-  completed_date date,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  user_id uuid references auth.users(id) on delete cascade not null,
+  name text not null,
+  type text not null check (type in ('income','expense')),
+  color text not null default '#64748B',
+  icon text not null default 'more',
+  locked boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (user_id, name)
 );
 
-create index if not exists idx_tasks_user_date_status
-  on public.tasks (user_id, date, status);
+create table if not exists public.transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  date date not null,
+  category_id uuid references public.categories(id) on delete set null,
+  item text not null,
+  amount bigint not null check (amount > 0),
+  type text not null check (type in ('income','expense')),
+  created_at timestamptz not null default now()
+);
 
--- 1b. Kolom penilaian prioritas (Task Priority Assessor) ------------
--- Aman dijalankan ulang di project yang sudah ada (ADD COLUMN IF NOT EXISTS).
-alter table public.tasks add column if not exists deadline date;
-alter table public.tasks add column if not exists effort_estimate varchar(20);
-alter table public.tasks add column if not exists impact_done smallint check (impact_done between 1 and 5);
-alter table public.tasks add column if not exists impact_late smallint check (impact_late between 1 and 5);
-alter table public.tasks add column if not exists strategic_fit smallint check (strategic_fit between 1 and 5);
-alter table public.tasks add column if not exists blocks_others boolean;
-alter table public.tasks add column if not exists blocks_who varchar(200);
-alter table public.tasks add column if not exists compliance_risk boolean;
-alter table public.tasks add column if not exists delegable boolean;
-alter table public.tasks add column if not exists stakeholders varchar(300);
-alter table public.tasks add column if not exists concurrent_tasks text;
-alter table public.tasks add column if not exists priority_score numeric(3,2);
-alter table public.tasks add column if not exists priority_level varchar(2)
-  check (priority_level in ('P0','P1','P2','P3'));
-alter table public.tasks add column if not exists priority_assessment jsonb;
+create index if not exists transactions_user_date_idx on public.transactions (user_id, date desc);
+create index if not exists transactions_user_category_idx on public.transactions (user_id, category_id);
 
-create index if not exists idx_tasks_user_priority
-  on public.tasks (user_id, date, priority_score desc);
+alter table public.categories enable row level security;
+alter table public.transactions enable row level security;
 
--- keep updated_at fresh
-create or replace function public.set_updated_at()
-returns trigger as $$
+drop policy if exists "categories_select_own" on public.categories;
+drop policy if exists "categories_insert_own" on public.categories;
+drop policy if exists "categories_update_own" on public.categories;
+drop policy if exists "categories_delete_own" on public.categories;
+
+create policy "categories_select_own" on public.categories for select using (auth.uid() = user_id);
+create policy "categories_insert_own" on public.categories for insert with check (auth.uid() = user_id);
+create policy "categories_update_own" on public.categories for update using (auth.uid() = user_id);
+create policy "categories_delete_own" on public.categories for delete using (auth.uid() = user_id);
+
+drop policy if exists "transactions_select_own" on public.transactions;
+drop policy if exists "transactions_insert_own" on public.transactions;
+drop policy if exists "transactions_update_own" on public.transactions;
+drop policy if exists "transactions_delete_own" on public.transactions;
+
+create policy "transactions_select_own" on public.transactions for select using (auth.uid() = user_id);
+create policy "transactions_insert_own" on public.transactions for insert with check (auth.uid() = user_id);
+create policy "transactions_update_own" on public.transactions for update using (auth.uid() = user_id);
+create policy "transactions_delete_own" on public.transactions for delete using (auth.uid() = user_id);
+
+-- Seed default categories automatically whenever a new user signs up
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
 begin
-  new.updated_at = now();
+  insert into public.categories (user_id, name, type, color, icon, locked) values
+    (new.id, 'Gaji', 'income', '#10B981', 'wallet', false),
+    (new.id, 'Bonus', 'income', '#34D399', 'gift', false),
+    (new.id, 'Belanja Bulanan', 'expense', '#EF4444', 'shopping', false),
+    (new.id, 'Transport', 'expense', '#F59E0B', 'car', false),
+    (new.id, 'Hiburan', 'expense', '#8B5CF6', 'film', false),
+    (new.id, 'Kesehatan', 'expense', '#3B82F6', 'heart', false),
+    (new.id, 'Lainnya', 'expense', '#64748B', 'more', true);
   return new;
 end;
-$$ language plpgsql;
-
-drop trigger if exists trg_tasks_updated_at on public.tasks;
-create trigger trg_tasks_updated_at
-  before update on public.tasks
-  for each row execute function public.set_updated_at();
-
--- 2. Row Level Security -------------------------------------------
-alter table public.tasks enable row level security;
-
-drop policy if exists "Users can view own tasks" on public.tasks;
-create policy "Users can view own tasks"
-  on public.tasks for select
-  using (auth.uid() = user_id);
-
-drop policy if exists "Users can insert own tasks" on public.tasks;
-create policy "Users can insert own tasks"
-  on public.tasks for insert
-  with check (auth.uid() = user_id);
-
-drop policy if exists "Users can update own tasks" on public.tasks;
-create policy "Users can update own tasks"
-  on public.tasks for update
-  using (auth.uid() = user_id);
-
-drop policy if exists "Users can delete own tasks" on public.tasks;
-create policy "Users can delete own tasks"
-  on public.tasks for delete
-  using (auth.uid() = user_id);
-
--- 3. RPC: statistik mingguan --------------------------------------
-create or replace function public.get_weekly_completed(p_month int, p_year int)
-returns table(week_number int, completed_count bigint)
-language sql
-security invoker
-as $$
-  select
-    ((extract(day from completed_date)::int - 1) / 7) + 1 as week_number,
-    count(*) as completed_count
-  from public.tasks
-  where user_id = auth.uid()
-    and status = 'done'
-    and completed_date is not null
-    and extract(month from completed_date) = p_month
-    and extract(year from completed_date) = p_year
-  group by week_number
-  order by week_number;
 $$;
 
--- 4. RPC: beban kerja bulanan (heatmap) -----------------------------
-create or replace function public.get_monthly_workload(p_month int, p_year int)
-returns table(task_date date, task_count bigint)
-language sql
-security invoker
-as $$
-  select date as task_date, count(*) as task_count
-  from public.tasks
-  where user_id = auth.uid()
-    and extract(month from date) = p_month
-    and extract(year from date) = p_year
-  group by date
-  order by date;
-$$;
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
--- 5. Rollover function (dipanggil oleh Edge Function terjadwal) -----
--- Catatan: ini berjalan lintas-user dengan service role key,
--- jadi TIDAK dibatasi RLS (dipanggil dari Edge Function, bukan client).
-create or replace function public.rollover_overdue_tasks()
-returns void
-language sql
-security definer
-as $$
-  update public.tasks
-  set date = current_date
-  where status <> 'done'
-    and date < current_date;
-$$;
+-- Budgeting: separate planning tool, independent from transactions/saldo
+create table if not exists public.budget_plans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  name text not null,
+  target_amount bigint,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.budget_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  plan_id uuid references public.budget_plans(id) on delete cascade not null,
+  date date not null,
+  category_id uuid references public.categories(id) on delete set null,
+  item text not null,
+  amount bigint not null check (amount > 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists budget_items_plan_idx on public.budget_items (plan_id);
+create index if not exists budget_plans_user_idx on public.budget_plans (user_id);
+
+alter table public.budget_plans enable row level security;
+alter table public.budget_items enable row level security;
+
+drop policy if exists "budget_plans_select_own" on public.budget_plans;
+drop policy if exists "budget_plans_insert_own" on public.budget_plans;
+drop policy if exists "budget_plans_update_own" on public.budget_plans;
+drop policy if exists "budget_plans_delete_own" on public.budget_plans;
+
+create policy "budget_plans_select_own" on public.budget_plans for select using (auth.uid() = user_id);
+create policy "budget_plans_insert_own" on public.budget_plans for insert with check (auth.uid() = user_id);
+create policy "budget_plans_update_own" on public.budget_plans for update using (auth.uid() = user_id);
+create policy "budget_plans_delete_own" on public.budget_plans for delete using (auth.uid() = user_id);
+
+drop policy if exists "budget_items_select_own" on public.budget_items;
+drop policy if exists "budget_items_insert_own" on public.budget_items;
+drop policy if exists "budget_items_update_own" on public.budget_items;
+drop policy if exists "budget_items_delete_own" on public.budget_items;
+
+create policy "budget_items_select_own" on public.budget_items for select using (auth.uid() = user_id);
+create policy "budget_items_insert_own" on public.budget_items for insert with check (auth.uid() = user_id);
+create policy "budget_items_update_own" on public.budget_items for update using (auth.uid() = user_id);
+create policy "budget_items_delete_own" on public.budget_items for delete using (auth.uid() = user_id);

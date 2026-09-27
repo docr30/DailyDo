@@ -1,0 +1,9 @@
+export const NAVY = "#1E293B";
+export const GREEN = "#10B981";
+export const RED = "#EF4444";
+export const PAPER = "#F6F7F6";
+export const SHADOW_LG = "0 1px 2px rgba(15,23,42,0.04), 0 12px 28px -8px rgba(15,23,42,0.14)";
+export const SHADOW_SM = "0 1px 2px rgba(15,23,42,0.04)";
+export const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+export const COLOR_OPTIONS = ["#10B981","#34D399","#EF4444","#F59E0B","#8B5CF6","#3B82F6","#EC4899","#64748B"];
+export const ICON_OPTIONS = ["wallet","gift","shopping","car","film","heart","graduation","coffee","more"];
